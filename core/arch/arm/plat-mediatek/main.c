@@ -12,8 +12,10 @@
 #include <platform_config.h>
 #include <stdint.h>
 
+#if defined(CFG_UART_ENABLE)
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 			CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
+#endif
 
 static struct serial8250_uart_data console_data;
 
@@ -43,7 +45,9 @@ void itr_core_handler(void)
 
 void console_init(void)
 {
+#if defined(CFG_UART_ENABLE)
 	serial8250_uart_init(&console_data, CONSOLE_UART_BASE,
 			     CONSOLE_UART_CLK_IN_HZ, CONSOLE_BAUDRATE);
 	register_serial_console(&console_data.chip);
+#endif
 }
