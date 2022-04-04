@@ -16,6 +16,10 @@ CFG_DRAM_SIZE ?= 0x40000000
 # enable console by default
 CFG_UART_ENABLE ?= y
 
+# Overrides the default CORE_HEAP_SIZE of 64KiB with 128KiB so that zlib
+# decompression always works
+CFG_CORE_HEAP_SIZE ?= 131072
+
 ifeq ($(PLATFORM_FLAVOR),mt8173)
 # 2**1 = 2 cores per cluster
 $(call force,CFG_TEE_CORE_NB_CORE,4)
