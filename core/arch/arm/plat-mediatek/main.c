@@ -19,7 +19,7 @@ register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 
 static struct serial8250_uart_data console_data;
 
-register_ddr(CFG_DRAM_BASE, CFG_DRAM_SIZE);
+register_ddr(CFG_DRAM_BASE, BIT64(CFG_CORE_ARM64_PA_BITS) - CFG_DRAM_BASE);
 
 #ifdef CFG_GIC
 static struct gic_data gic_data;
