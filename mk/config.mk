@@ -907,3 +907,13 @@ CFG_DRIVERS_TPM2_MMIO ?= n
 ifeq ($(CFG_CORE_TPM_EVENT_LOG),y)
 CFG_CORE_TCG_PROVIDER ?= $(CFG_DRIVERS_TPM2)
 endif
+
+# When enabled, CFG_WIDEVINE_HUK uses the widevine HUK provided by secure
+# DTB as OP-TEE HUK.
+CFG_WIDEVINE_HUK ?= n
+$(eval $(call cfg-depends-all,CFG_WIDEVINE_HUK,CFG_DT))
+
+# When enabled, CFG_WIDEVINE_PTA embeds a PTA that exposes the keys under
+# DT node "/options/op-tee/widevine" to some specific TAs.
+CFG_WIDEVINE_PTA ?= n
+$(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
