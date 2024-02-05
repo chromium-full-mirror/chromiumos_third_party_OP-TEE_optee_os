@@ -268,6 +268,10 @@ void gic_init_base_addr(struct gic_data *gd,
 
 	if (IS_ENABLED(CFG_DT))
 		gd->chip.dt_get_irq = gic_dt_get_irq;
+
+#if defined(CFG_ENABLE_GROUP1S)
+	io_setbits32(gd->gicd_base + GICD_CTLR, GICD_CTLR_ENABLEGRP1S);
+#endif
 }
 
 static void gic_it_add(struct gic_data *gd, size_t it)
