@@ -110,7 +110,11 @@
 #endif
 
 #ifdef CFG_WITH_LPAE
-#define MAX_XLAT_TABLES		5
+#ifdef CFG_RES_VA_FOR_VIRTMAP
+#define MAX_XLAT_TABLES		(30 + (CFG_RESERVED_VASPACE_SIZE) / (CORE_MMU_PGDIR_SIZE) + 1)
+#else
+#define MAX_XLAT_TABLES		30
+#endif
 #endif
 
 #endif /*PLATFORM_CONFIG_H*/
