@@ -36,6 +36,7 @@ struct itr_ops {
 	void (*raise_pi)(struct itr_chip *chip, size_t it);
 	void (*raise_sgi)(struct itr_chip *chip, size_t it,
 		uint8_t cpu_mask);
+	void (*reset)(struct itr_chip *chip, size_t it);
 	void (*set_affinity)(struct itr_chip *chip, size_t it,
 		uint8_t cpu_mask);
 };
@@ -102,6 +103,8 @@ void itr_raise_pi(size_t it);
  * the cpu_mask represents which cpu interface to forward.
  */
 void itr_raise_sgi(size_t it, uint8_t cpu_mask);
+/* reset the property for a interrupt after unregister */
+void itr_reset(size_t it);
 /*
  * let corresponding interrupt forward to the cpu interface
  * according to the cpu_mask.

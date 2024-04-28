@@ -72,6 +72,9 @@
 #define GICC_IAR_CPU_ID_MASK	0x7
 #define GICC_IAR_CPU_ID_SHIFT	10
 
+static uint8_t pre_prio[GIC_MAX_INTS];
+static uint8_t pre_tar[GIC_MAX_INTS];
+
 static void gic_op_add(struct itr_chip *chip, size_t it, uint32_t type,
 		       uint32_t prio);
 static void gic_op_enable(struct itr_chip *chip, size_t it);
@@ -79,6 +82,7 @@ static void gic_op_disable(struct itr_chip *chip, size_t it);
 static void gic_op_raise_pi(struct itr_chip *chip, size_t it);
 static void gic_op_raise_sgi(struct itr_chip *chip, size_t it,
 			uint8_t cpu_mask);
+static void gic_op_reset(struct itr_chip *chip, size_t it);
 static void gic_op_set_affinity(struct itr_chip *chip, size_t it,
 			uint8_t cpu_mask);
 
@@ -88,6 +92,7 @@ static const struct itr_ops gic_ops = {
 	.disable = gic_op_disable,
 	.raise_pi = gic_op_raise_pi,
 	.raise_sgi = gic_op_raise_sgi,
+	.reset = gic_op_reset,
 	.set_affinity = gic_op_set_affinity,
 };
 DECLARE_KEEP_PAGER(gic_ops);
@@ -306,6 +311,7 @@ static void gic_it_set_cpu_mask(struct gic_data *gd, size_t it,
 	/* Route it to selected CPUs */
 	target = io_read32(itargetsr);
 	target_shift = (it % NUM_TARGETS_PER_REG) * ITARGETSR_FIELD_BITS;
+	pre_tar[it] = ((target >> target_shift) & ITARGETSR_FIELD_MASK);
 	target &= ~(ITARGETSR_FIELD_MASK << target_shift);
 	target |= cpu_mask << target_shift;
 	DMSG("cpu_mask: writing 0x%x to 0x%" PRIxVA, target, itargetsr);
@@ -324,6 +330,7 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 	/* Set prio it to selected CPUs */
 	DMSG("prio: writing 0x%x to 0x%" PRIxVA,
 		prio, gd->gicd_base + GICD_IPRIORITYR(0) + it);
+	pre_prio[it] = io_read8(gd->gicd_base + GICD_IPRIORITYR(0) + it);
 	io_write8(gd->gicd_base + GICD_IPRIORITYR(0) + it, prio);
 }
 
@@ -350,6 +357,26 @@ static void gic_it_disable(struct gic_data *gd, size_t it)
 
 	/* Disable the interrupt */
 	io_write32(gd->gicd_base + GICD_ICENABLER(idx), mask);
+}
+
+static void gic_it_reset(struct gic_data *gd, size_t it)
+{
+	size_t idx = it / NUM_INTS_PER_REG;
+	uint32_t mask = 1 << (it % NUM_INTS_PER_REG);
+
+	/* Assigned to group0 */
+	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+
+	gic_it_set_prio(gd, it, pre_prio[it]);
+	gic_it_set_cpu_mask(gd, it, pre_tar[it]);
+
+	/* Clear pending status */
+	io_write32(gd->gicd_base + GICD_ICPENDR(idx), mask);
+	/* Assign it to group1 */
+	io_setbits32(gd->gicd_base + GICD_IGROUPR(idx), mask);
+#if defined(CFG_ARM_GICV3)
+	io_clrbits32(gd->gicd_base + GICD_IGROUPMODR(idx), mask);
+#endif
 }
 
 static void gic_it_set_pending(struct gic_data *gd, size_t it)
@@ -481,6 +508,17 @@ static void gic_op_enable(struct itr_chip *chip, size_t it)
 		panic();
 
 	gic_it_enable(gd, it);
+}
+
+static void gic_op_reset(struct itr_chip *chip, size_t it)
+{
+
+	struct gic_data *gd = container_of(chip, struct gic_data, chip);
+
+	if (it > gd->max_it)
+		panic();
+
+	gic_it_reset(gd, it);
 }
 
 static void gic_op_disable(struct itr_chip *chip, size_t it)
