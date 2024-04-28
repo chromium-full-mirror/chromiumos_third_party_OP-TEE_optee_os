@@ -118,6 +118,11 @@ void itr_disable(size_t it)
 	itr_chip->ops->disable(itr_chip, it);
 }
 
+void itr_reset(size_t it)
+{
+	itr_chip->ops->reset(itr_chip, it);
+}
+
 void itr_raise_pi(size_t it)
 {
 	itr_chip->ops->raise_pi(itr_chip, it);
