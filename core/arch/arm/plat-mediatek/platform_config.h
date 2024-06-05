@@ -105,6 +105,21 @@
 #define CONSOLE_BAUDRATE	115200
 #define CONSOLE_UART_CLK_IN_HZ	26000000
 
+#elif defined(PLATFORM_FLAVOR_mt8196)
+
+#define GIC_BASE		0x0C400000
+#define GICC_OFFSET		0x400000
+#define GICD_OFFSET		0x0
+
+#define UART0_BASE		0x16000000
+#define UART1_BASE		0x16010000
+#define UART2_BASE		0x16020000
+
+#define CONSOLE_UART_BASE	UART0_BASE
+#define CONSOLE_BAUDRATE	115200
+#define CONSOLE_UART_CLK_IN_HZ	26000000
+
+
 #else
 #error "Unknown platform flavor"
 #endif
