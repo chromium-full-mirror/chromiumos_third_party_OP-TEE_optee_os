@@ -84,7 +84,7 @@ static int _der_decode_sequence_va(const unsigned char *in, unsigned long inlen,
       return CRYPT_NOP;
    }
 
-   list = XCALLOC(sizeof(*list), x);
+   list = XCALLOC(x, sizeof(*list));
    if (list == NULL) {
       return CRYPT_MEM;
    }
