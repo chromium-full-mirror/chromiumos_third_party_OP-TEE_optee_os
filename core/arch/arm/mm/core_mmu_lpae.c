@@ -626,8 +626,7 @@ static void core_init_mmu_prtn_tee(struct mmu_partition *prtn,
 	memset(prtn->base_tables, 0, sizeof(base_xlation_table));
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
-		if (!core_mmu_is_dynamic_vaspace(mm + n))
-			core_mmu_map_region(prtn, mm + n);
+		core_mmu_map_region(prtn, mm + n);
 
 	/*
 	 * Primary mapping table is ready at index `get_core_pos()`

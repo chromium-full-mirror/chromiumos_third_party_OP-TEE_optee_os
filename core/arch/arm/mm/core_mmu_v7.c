@@ -758,8 +758,7 @@ void core_init_mmu_prtn(struct mmu_partition *prtn, struct tee_mmap_region *mm)
 	memset(ttb1, 0, L1_TBL_SIZE);
 
 	for (n = 0; !core_mmap_is_end_of_table(mm + n); n++)
-		if (!core_mmu_is_dynamic_vaspace(mm + n))
-			core_mmu_map_region(prtn, mm + n);
+		core_mmu_map_region(prtn, mm + n);
 }
 
 void core_init_mmu(struct tee_mmap_region *mm)
