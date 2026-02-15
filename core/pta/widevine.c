@@ -4,6 +4,7 @@
  */
 
 #include <compiler.h>
+#include <config.h>
 #include <initcall.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
@@ -22,6 +23,8 @@
 
 #define TPM_AUTH_PUB_MAX_SIZE 1024
 #define WIDEVINE_PRIV_MAX_SIZE 32
+#define WIDEVINE_DEVICE_MAX_SIZE 32
+#define GSC_COUNTER_MAX_SIZE 32
 
 #define CROS_HWSEC_TA_UUID                                             \
 	{                                                              \
@@ -45,11 +48,18 @@
 		}                                                      \
 	}
 
+#if defined(CFG_WIDEVINE_NEW_KEYS)
+static const TEE_UUID allowed_ta_uuids[2] = {
+    CROS_HDCP_PROV4_TA_UUID,
+    TA_OPTEE_OEMCRYPTO_UUID,
+};
+#else
 static const TEE_UUID allowed_ta_uuids[3] = {
 	CROS_HWSEC_TA_UUID,
 	CROS_HDCP_PROV4_TA_UUID,
 	TA_OPTEE_OEMCRYPTO_UUID,
 };
+#endif  // defined(WIDEVINE_NEW_KEYS)
 
 /*
  * The TPM auth public key. Used to communicate with the TPM from OP-TEE.
@@ -68,6 +78,20 @@ static uint32_t tpm_auth_pub_size;
  */
 static uint8_t widevine_priv[WIDEVINE_PRIV_MAX_SIZE];
 static uint32_t widevine_priv_size;
+
+/*
+ * The Widevine device key.  This is a 256 bits seed to derive the encryption
+ * keys for the protected data in DRM.
+ */
+static uint8_t widevine_device_key[WIDEVINE_DEVICE_MAX_SIZE];
+static uint32_t widevine_device_key_size;
+
+/*
+ * The GSC counter key.  This is used to validate the data sent from GSC.
+ * This is a 256 bits value.
+ */
+static uint8_t gsc_counter_key[GSC_COUNTER_MAX_SIZE];
+static uint32_t gsc_counter_key_size;
 
 static TEE_Result init_widevine_dt_data(void)
 {
@@ -104,6 +128,28 @@ static TEE_Result init_widevine_dt_data(void)
 
 	memcpy(widevine_priv, value, len);
 	widevine_priv_size = len;
+
+	if (IS_ENABLED(CFG_WIDEVINE_NEW_KEYS)) {
+		value = fdt_getprop(fdt, node, "google,drm-device-key", &len);
+		if (!value)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		if (len > WIDEVINE_DEVICE_MAX_SIZE)
+			return TEE_ERROR_OVERFLOW;
+
+		memcpy(widevine_device_key, value, len);
+		widevine_device_key_size = len;
+
+		value = fdt_getprop(fdt, node, "google,gsc-counter-key", &len);
+		if (!value)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		if (len > GSC_COUNTER_MAX_SIZE)
+			return TEE_ERROR_OVERFLOW;
+
+		memcpy(gsc_counter_key, value, len);
+		gsc_counter_key_size = len;
+	}
 
 	return TEE_SUCCESS;
 }
@@ -149,12 +195,21 @@ static TEE_Result get_dt_data(uint32_t ptypes, TEE_Param params[TEE_NUM_PARAMS],
 	} else if (cmd == PTA_WIDEVINE_GET_WIDEVINE_PRIVKEY) {
 		data = widevine_priv;
 		data_length = widevine_priv_size;
-	} else {
+	} else if (cmd == PTA_WIDEVINE_GET_WIDEVINE_DEVICE_KEY &&
+			   IS_ENABLED(CFG_WIDEVINE_NEW_KEYS)) {
+		data = widevine_device_key;
+		data_length = widevine_device_key_size;
+	} else if (cmd == PTA_WIDEVINE_GET_GSC_COUNTER_KEY &&
+			   IS_ENABLED(CFG_WIDEVINE_NEW_KEYS)) {
+		data = gsc_counter_key;
+		data_length = gsc_counter_key_size;
+	}else {
 		return TEE_ERROR_NOT_IMPLEMENTED;
-	}
+    }
 
-	if (data_length == 0)
+	if (data_length == 0) {
 		return TEE_ERROR_NO_DATA;
+	}
 
 	if (data_length > params[0].memref.size) {
 		params[0].memref.size = data_length;

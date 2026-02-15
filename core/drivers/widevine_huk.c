@@ -3,6 +3,7 @@
  * Copyright (c) 2023, The ChromiumOS Authors
  */
 
+#include <config.h>
 #include <kernel/boot.h>
 #include <kernel/tee_common_otp.h>
 #include <libfdt.h>
@@ -29,8 +30,12 @@ static TEE_Result init_widevine_huk_dt_data(void)
 	node = fdt_path_offset(fdt, "/options/op-tee/widevine");
 	if (node < 0)
 		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	value = fdt_getprop(fdt, node, "op-tee,hardware-unique-key", &len);
+	if (IS_ENABLED(CFG_WIDEVINE_NEW_KEYS)) {
+		value = fdt_getprop(fdt, node, "op-tee,stable-hardware-unique-key",
+							&len);
+	} else {
+		value = fdt_getprop(fdt, node, "op-tee,hardware-unique-key", &len);
+	}
 	if (!value)
 		return TEE_ERROR_ITEM_NOT_FOUND;
 

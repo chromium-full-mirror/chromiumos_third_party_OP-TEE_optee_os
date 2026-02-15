@@ -21,6 +21,8 @@
 /*
  * PTA_WIDEVINE_GET_TPM_PUBKEY - Get Widevine TPM public key
  * PTA_WIDEVINE_GET_WIDEVINE_PRIVKEY - Get Widevine private key
+ * PTA_WIDEVINE_GET_WIDEVINE_PRIVKEY - Get Widevine device key
+ * PTA_WIDEVINE_GET_GSC_COUNTER_KEY - Get GSC counter key
  *
  * [out]     memref[0]        Retrieved key data
  *
@@ -32,5 +34,7 @@
  */
 #define PTA_WIDEVINE_GET_TPM_PUBKEY 0
 #define PTA_WIDEVINE_GET_WIDEVINE_PRIVKEY 1
+#define PTA_WIDEVINE_GET_WIDEVINE_DEVICE_KEY 2
+#define PTA_WIDEVINE_GET_GSC_COUNTER_KEY 3
 
 #endif /* __PTA_WIDEVINE_H */

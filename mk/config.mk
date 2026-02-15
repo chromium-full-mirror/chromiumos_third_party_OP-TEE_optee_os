@@ -921,3 +921,6 @@ $(eval $(call cfg-depends-all,CFG_WIDEVINE_PTA,CFG_DT CFG_WIDEVINE_HUK))
 # If y, enable sending the SSK fingerprint extension in FS RPC calls to allow
 # the normal world to detect storage key changes.
 CFG_CORE_SEND_FS_KEY_FINGERPRINT ?= n
+
+# When enabled, the new widevine keys are plumbed.
+CFG_WIDEVINE_NEW_KEYS ?=n
