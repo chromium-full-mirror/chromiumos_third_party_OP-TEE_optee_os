@@ -22,10 +22,12 @@
 #include <tee/entry_fast.h>
 #include <tee/entry_std.h>
 #include <tee/tee_cryp_utl.h>
+#include <tee/tee_fs_key_manager.h>
 #include <tee/tee_fs_rpc.h>
 
 static bool thread_prealloc_rpc_cache;
 static unsigned int thread_rpc_pnum;
+static bool ssk_fp_sent;
 
 static_assert(NOTIF_VALUE_DO_BOTTOM_HALF ==
 	      OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF);
@@ -566,10 +568,48 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	void *arg = NULL;
 	uint64_t carg = 0;
 	uint32_t ret = 0;
+	bool append_ssk_fp = false;
+
+	if (IS_ENABLED(CFG_CORE_SEND_FS_KEY_FINGERPRINT) &&
+	    cmd == OPTEE_RPC_CMD_FS && !ssk_fp_sent) {
+		/*
+		 * Every FS RPC call must have space for the injected SSK
+		 * fingerprint extension. THREAD_RPC_MAX_NUM_PARAMS (4) is
+		 * the absolute architectural limit of the RPC message structure.
+		 * The number of arguments of all FS commands arguments, which are
+		 * defined core/tee/tee_fs_rpc.c and core/tee/tadb.c, are less than
+		 * THREAD_RPC_MAX_NUM_PARAMS.
+		 *
+		 * Note that there is a benign race condition here: multiple
+		 * threads might simultaneously see ssk_fp_sent as false and
+		 * append the fingerprint to their respective RPC calls. This
+		 * is harmless as tee-supplicant correctly ignores redundant
+		 * fingerprints after the first one is verified.
+		 */
+		assert(num_params < THREAD_RPC_MAX_NUM_PARAMS);
+		append_ssk_fp = true;
+	}
 
 	/* The source CRYPTO_RNG_SRC_JITTER_RPC is safe to use here */
 	plat_prng_add_jitter_entropy(CRYPTO_RNG_SRC_JITTER_RPC,
 				     &thread_rpc_pnum);
+
+	if (append_ssk_fp) {
+		uint64_t fp[2] = { 0 };
+		tee_fs_get_ssk_fingerprint(fp);
+
+		/*
+		 * Append a 128-bit fingerprint of the secure storage key.
+		 * Fields 'a' and 'b' carry the fingerprint, while field 'c'
+		 * carries a magic number (ASCII 'FPSK' = 0x4650534B) so
+		 * tee-supplicant can reliably identify and strip this extension.
+		 * Endianness is not concerned because this is only used for
+		 * equality comparison in the normal world.
+		 */
+		params[num_params] = THREAD_PARAM_VALUE(IN, fp[0], fp[1],
+					0x4650534B);
+		num_params++;
+	}
 
 	ret = get_rpc_arg(cmd, num_params, params, &arg, &carg);
 	if (ret)
@@ -578,7 +618,11 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	reg_pair_from_64(carg, rpc_args + 1, rpc_args + 2);
 	thread_rpc(rpc_args);
 
-	return get_rpc_arg_res(arg, num_params, params);
+	ret = get_rpc_arg_res(arg, num_params, params);
+	if (ret == TEE_SUCCESS && append_ssk_fp)
+		ssk_fp_sent = true;
+
+	return ret;
 }
 
 /**

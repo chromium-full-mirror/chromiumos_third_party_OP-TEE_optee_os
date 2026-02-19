@@ -37,6 +37,10 @@ struct tee_fs_ssk {
 };
 
 static struct tee_fs_ssk tee_fs_ssk;
+static uint64_t ssk_fingerprint[2];
+
+/* Domain separation string for the non-secret SSK fingerprint */
+static const char ssk_fp_domain[] = "fingerprint";
 
 static TEE_Result do_hmac(void *out_key, size_t out_key_size,
 			  const void *in_key, size_t in_key_size,
@@ -139,17 +143,36 @@ static TEE_Result generate_fek(uint8_t *key, uint8_t len)
 static TEE_Result tee_fs_init_key_manager(void)
 {
 	TEE_Result res = TEE_SUCCESS;
+	uint8_t hash[TEE_SHA256_HASH_SIZE];
 
 	COMPILE_TIME_ASSERT(TEE_FS_KM_SSK_SIZE <= HUK_SUBKEY_MAX_LEN);
 
 	res = huk_subkey_derive(HUK_SUBKEY_SSK, NULL, 0,
 				tee_fs_ssk.key, sizeof(tee_fs_ssk.key));
-	if (res == TEE_SUCCESS)
+	if (res == TEE_SUCCESS) {
 		tee_fs_ssk.is_init = 1;
-	else
+		res = do_hmac(hash, sizeof(hash), tee_fs_ssk.key,
+			      TEE_FS_KM_SSK_SIZE, ssk_fp_domain,
+			      sizeof(ssk_fp_domain));
+		if (res == TEE_SUCCESS) {
+			/*
+			 * 128 bits provides world-class collision resistance
+			 * (UUID-scale). Endianness is not concerned because
+			 * this is only used for equality comparison.
+			 */
+			memcpy(ssk_fingerprint, hash, sizeof(ssk_fingerprint));
+		}
+	} else {
 		memzero_explicit(&tee_fs_ssk, sizeof(tee_fs_ssk));
+	}
 
 	return res;
+}
+
+void tee_fs_get_ssk_fingerprint(uint64_t fp[2])
+{
+	fp[0] = ssk_fingerprint[0];
+	fp[1] = ssk_fingerprint[1];
 }
 
 TEE_Result tee_fs_generate_fek(const TEE_UUID *uuid, void *buf, size_t buf_size)

@@ -27,4 +27,12 @@ TEE_Result tee_fs_fek_crypt(const TEE_UUID *uuid, TEE_OperationMode mode,
 			    const uint8_t *in_key, size_t size,
 			    uint8_t *out_key);
 
+/*
+ * Returns a 128-bit non-secret fingerprint of the SSK.
+ * 128 bits is sufficient for unique hardware identification (UUID-scale).
+ * Endianness is not concerned because this is only used for equality
+ * comparison in the normal world.
+ */
+void tee_fs_get_ssk_fingerprint(uint64_t fp[2]);
+
 #endif
