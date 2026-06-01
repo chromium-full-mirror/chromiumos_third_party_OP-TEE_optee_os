@@ -101,7 +101,13 @@ TEE_Result tee_invoke_supp_plugin(const TEE_UUID *uuid, uint32_t cmd,
 
 	res = invoke_system_pta(PTA_SYSTEM_SUPP_PLUGIN_INVOKE, param_types,
 				params);
-	if (res)
+	/*
+	 * It's a typical pattern that a TA queries the tee-supplicant necessary
+	 * buffer size and the tee-supplicant notifies the buffer size with
+	 * TEE_ERROR_SHORT_BUFFER error code. This is not real functional error,
+	 * so we don't print an error log for it.
+	 */
+	if (res && res != TEE_ERROR_SHORT_BUFFER)
 		EMSG("Invoke tee-supplicant's plugin failed: %#"PRIx32, res);
 
 	if (outlen)
