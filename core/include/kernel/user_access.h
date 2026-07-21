@@ -42,4 +42,25 @@ static inline void *uref_to_kaddr(uint32_t uref)
 	return (void *)uref_to_vaddr(uref);
 }
 
+#define GET_USER_SCALAR(_x, _p) ({					\
+	TEE_Result __res = TEE_SUCCESS;					\
+	typeof(_p) __p = (_p);						\
+									\
+	static_assert(sizeof(_x) == sizeof(*__p));			\
+									\
+	__res = copy_from_user(&(_x), (const void *)__p, sizeof(*__p));	\
+	__res;								\
+})
+
+#define PUT_USER_SCALAR(_x, _p) ({					\
+	TEE_Result __res = TEE_SUCCESS;					\
+	typeof(_p) __p = (_p);						\
+									\
+	static_assert(sizeof(_x) == sizeof(*__p));			\
+									\
+	__res = copy_to_user((void *)__p, &(_x), sizeof(*__p));		\
+	__res;								\
+})
+
 #endif /*__KERNEL_USER_ACCESS_H*/
+
