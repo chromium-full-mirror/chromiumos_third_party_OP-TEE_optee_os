@@ -48,18 +48,47 @@
 		}                                                      \
 	}
 
+static const uint32_t hwsec_cmds[] = {
+	PTA_WIDEVINE_GET_TPM_PUBKEY,
+};
+
+static const uint32_t oemcrypto_cmds[] = {
+	PTA_WIDEVINE_GET_WIDEVINE_PRIVKEY,
 #if defined(CFG_WIDEVINE_NEW_KEYS)
-static const TEE_UUID allowed_ta_uuids[2] = {
-    CROS_HDCP_PROV4_TA_UUID,
-    TA_OPTEE_OEMCRYPTO_UUID,
+	PTA_WIDEVINE_GET_WIDEVINE_DEVICE_KEY,
+	PTA_WIDEVINE_GET_GSC_COUNTER_KEY,
+#endif
 };
-#else
-static const TEE_UUID allowed_ta_uuids[3] = {
-	CROS_HWSEC_TA_UUID,
-	CROS_HDCP_PROV4_TA_UUID,
-	TA_OPTEE_OEMCRYPTO_UUID,
+
+static const uint32_t hdcp_cmds[] = {
+	PTA_WIDEVINE_GET_WIDEVINE_PRIVKEY,
 };
-#endif  // defined(WIDEVINE_NEW_KEYS)
+
+struct ta_acl {
+	TEE_UUID uuid;
+	const uint32_t *allowed_cmds;
+	size_t allowed_cmds_count;
+};
+
+static const struct ta_acl widevine_pta_acl[] = {
+#if !defined(CFG_WIDEVINE_NEW_KEYS)
+	{
+		.uuid = CROS_HWSEC_TA_UUID,
+		.allowed_cmds = hwsec_cmds,
+		.allowed_cmds_count = ARRAY_SIZE(hwsec_cmds),
+	},
+#endif
+	{
+		.uuid = CROS_HDCP_PROV4_TA_UUID,
+		.allowed_cmds = hdcp_cmds,
+		.allowed_cmds_count = ARRAY_SIZE(hdcp_cmds),
+	},
+	{
+		.uuid = TA_OPTEE_OEMCRYPTO_UUID,
+		.allowed_cmds = oemcrypto_cmds,
+		.allowed_cmds_count = ARRAY_SIZE(oemcrypto_cmds),
+	},
+};
 
 /*
  * The TPM auth public key. Used to communicate with the TPM from OP-TEE.
@@ -168,8 +197,8 @@ static TEE_Result open_session(uint32_t param_types __unused,
 		return TEE_ERROR_ACCESS_DENIED;
 
 	/* Make sure we are called from an allowed TA */
-	for (i = 0; i < ARRAY_SIZE(allowed_ta_uuids); i++)
-		if (memcmp(&session->ctx->uuid, &allowed_ta_uuids[i],
+	for (i = 0; i < ARRAY_SIZE(widevine_pta_acl); i++)
+		if (memcmp(&session->ctx->uuid, &widevine_pta_acl[i].uuid,
 			   sizeof(TEE_UUID)) == 0)
 			return TEE_SUCCESS;
 
@@ -222,6 +251,24 @@ static TEE_Result get_dt_data(uint32_t ptypes, TEE_Param params[TEE_NUM_PARAMS],
 	return TEE_SUCCESS;
 }
 
+static bool is_cmd_allowed(const TEE_UUID *uuid, uint32_t cmd)
+{
+	size_t i, j;
+
+	for (i = 0; i < ARRAY_SIZE(widevine_pta_acl); i++) {
+		if (memcmp(uuid, &widevine_pta_acl[i].uuid, sizeof(TEE_UUID)) == 0) {
+			for (j = 0; j < widevine_pta_acl[i].allowed_cmds_count; j++) {
+				if (cmd == widevine_pta_acl[i].allowed_cmds[j]) {
+					return true;
+				}
+			}
+			return false; /* UUID found but command not allowed */
+		}
+	}
+
+	return false; /* UUID not in ACL */
+}
+
 /*
  * Trusted Application Entry Points
  */
@@ -229,6 +276,14 @@ static TEE_Result invoke_command(void *psess __unused, uint32_t cmd,
 				 uint32_t ptypes,
 				 TEE_Param params[TEE_NUM_PARAMS])
 {
+	struct ts_session *session = ts_get_calling_session();
+
+	if (!session || !is_user_ta_ctx(session->ctx))
+		return TEE_ERROR_ACCESS_DENIED;
+
+	if (!is_cmd_allowed(&session->ctx->uuid, cmd))
+		return TEE_ERROR_ACCESS_DENIED;
+
 	return get_dt_data(ptypes, params, cmd);
 }
 
