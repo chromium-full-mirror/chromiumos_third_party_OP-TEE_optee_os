@@ -12,8 +12,14 @@ cflags-memcpy.c-y += -O2
 endif
 cflags-memcpy.c-y += $(call cc-option,-fno-tree-loop-distribute-patterns)
 srcs-y += memmove.c
+ifeq (s,$(CFG_CC_OPT_LEVEL))
+cflags-memmove.c-y += -O2
+endif
 cflags-memmove.c-y += $(call cc-option,-fno-tree-loop-distribute-patterns)
 srcs-y += memset.c
+ifeq (s,$(CFG_CC_OPT_LEVEL))
+cflags-memset.c-y += -O2
+endif
 cflags-memset.c-y += $(call cc-option,-fno-tree-loop-distribute-patterns)
 srcs-y += strchr.c
 srcs-y += strcmp.c
