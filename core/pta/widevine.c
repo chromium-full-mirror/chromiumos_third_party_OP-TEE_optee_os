@@ -48,9 +48,11 @@
 		}                                                      \
 	}
 
+#if !defined(CFG_WIDEVINE_NEW_KEYS)
 static const uint32_t hwsec_cmds[] = {
 	PTA_WIDEVINE_GET_TPM_PUBKEY,
 };
+#endif
 
 static const uint32_t oemcrypto_cmds[] = {
 	PTA_WIDEVINE_GET_WIDEVINE_PRIVKEY,
