@@ -15,9 +15,9 @@
 #if defined(CFG_UART_ENABLE)
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC,
 			CONSOLE_UART_BASE, SERIAL8250_UART_REG_SIZE);
-#endif
 
 static struct serial8250_uart_data console_data;
+#endif
 
 register_ddr(CFG_DRAM_BASE, BIT64(CFG_CORE_ARM64_PA_BITS) - CFG_DRAM_BASE);
 
